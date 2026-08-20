@@ -17,7 +17,13 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "@langchain/core": "^1.2.8",
+    "@langchain/google": "^0.2.2",
+    "@langchain/google-vertexai": "^2.2.0",
+    "@langchain/openai": "^1.5.8",
+    "cors": "^2.8.6",
     "dotenv": "^17.4.2",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "zod": "^4.4.3"
   }
 }
