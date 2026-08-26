@@ -6,21 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
+type SearchMode = 'direct' | 'web';
+
 type Exchange = {
   id: string;
   query: string;
-  summary: string;
-  confidence: number;
+  answer: string;
+  sources: string[];
+  mode: SearchMode;
 };
 
-function confidenceLabel(confidence: number) {
-  return `${Math.round(confidence * 100)}%`;
-}
-
-function confidenceVariant(confidence: number) {
-  if (confidence >= 0.8) return 'default' as const;
-  if (confidence >= 0.5) return 'secondary' as const;
-  return 'outline' as const;
+function isSearchMode(value: unknown): value is SearchMode {
+  return value === 'direct' || value === 'web';
 }
 
 export function AgentChat() {
@@ -38,14 +35,19 @@ export function AgentChat() {
     const trimmed = query.trim();
     if (!trimmed || isLoading) return;
 
+    if (trimmed.length < 5) {
+      setError('Please enter at least 5 characters.');
+      return;
+    }
+
     setError(null);
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/ask', {
+      const response = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: trimmed }),
+        body: JSON.stringify({ q: trimmed }),
       });
 
       const data = await response.json();
@@ -54,20 +56,22 @@ export function AgentChat() {
         throw new Error(data.error || 'Something went wrong');
       }
 
-      if (
-        typeof data.summary !== 'string' ||
-        typeof data.confidence !== 'number'
-      ) {
+      if (typeof data.answer !== 'string' || !isSearchMode(data.mode)) {
         throw new Error('Unexpected response from agent');
       }
+
+      const sources = Array.isArray(data.sources)
+        ? data.sources.filter((source: unknown): source is string => typeof source === 'string')
+        : [];
 
       setExchanges((prev) => [
         ...prev,
         {
           id: crypto.randomUUID(),
           query: trimmed,
-          summary: data.summary,
-          confidence: data.confidence,
+          answer: data.answer,
+          sources,
+          mode: data.mode,
         },
       ]);
       setQuery('');
@@ -101,8 +105,8 @@ export function AgentChat() {
           {exchanges.length === 0 && !isLoading ? (
             <div className="flex flex-1 items-center justify-center py-16 text-center animate-in fade-in duration-700">
               <p className="max-w-sm text-sm text-zinc-400">
-                Ask anything below. Answers will appear here with a confidence
-                score for each reply.
+                Ask anything below. Answers may come from the model directly or
+                from a live web search, with sources when available.
               </p>
             </div>
           ) : (
@@ -121,20 +125,41 @@ export function AgentChat() {
 
                   <div className="flex justify-start">
                     <div className="max-w-[90%] rounded-2xl rounded-bl-md border border-zinc-200/80 bg-white/90 px-4 py-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)] backdrop-blur-sm">
-                      <div className="mb-2 flex items-center gap-2">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
                         <span className="text-xs font-medium tracking-wide text-zinc-400 uppercase">
                           Answer
                         </span>
                         <Badge
-                          variant={confidenceVariant(exchange.confidence)}
+                          variant={exchange.mode === 'web' ? 'default' : 'secondary'}
                           className="rounded-md"
                         >
-                          {confidenceLabel(exchange.confidence)} confidence
+                          {exchange.mode === 'web' ? 'Web search' : 'Direct'}
                         </Badge>
                       </div>
                       <p className="text-sm leading-relaxed text-zinc-800 whitespace-pre-wrap">
-                        {exchange.summary}
+                        {exchange.answer}
                       </p>
+                      {exchange.sources.length > 0 && (
+                        <div className="mt-3 border-t border-zinc-100 pt-3">
+                          <p className="mb-1.5 text-xs font-medium tracking-wide text-zinc-400 uppercase">
+                            Sources
+                          </p>
+                          <ul className="flex flex-col gap-1">
+                            {exchange.sources.map((source) => (
+                              <li key={source}>
+                                <a
+                                  href={source}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="break-all text-xs text-zinc-600 underline-offset-2 hover:text-zinc-900 hover:underline"
+                                >
+                                  {source}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </article>
@@ -143,7 +168,7 @@ export function AgentChat() {
               {isLoading && (
                 <div className="flex justify-start animate-in fade-in duration-300">
                   <div className="rounded-2xl rounded-bl-md border border-zinc-200/80 bg-white/90 px-4 py-3 text-sm text-zinc-400 shadow-sm">
-                    Thinking…
+                    Searching and thinking…
                   </div>
                 </div>
               )}
@@ -182,7 +207,7 @@ export function AgentChat() {
           />
           <Button
             type="submit"
-            disabled={isLoading || !query.trim()}
+            disabled={isLoading || query.trim().length < 5}
             className="h-11 rounded-xl px-5"
           >
             {isLoading ? 'Asking…' : 'Ask'}

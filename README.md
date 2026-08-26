@@ -1,13 +1,13 @@
 # Agent H
 
-Agent H is a full-stack AI Q&A app. You type a question in the Next.js UI, the Express backend calls an LLM through LangChain, and the reply comes back as a short beginner-friendly summary plus a confidence score (0–1).
+Agent H is a full-stack AI Q&A app. You type a question in the Next.js UI; the Express backend routes it through a LangChain LCEL chain that either answers directly or searches the web (Tavily), then returns `{ answer, sources, mode }`.
 
 ```
 Browser (localhost:3000)
-  → Next.js /api/ask
-  → Express POST /ask-agent (localhost:3030)
-  → LangChain (OpenAI or Google Gemini)
-  → { summary, confidence }
+  → Next.js /api/search
+  → Express POST /search (localhost:3030)
+  → LCEL (route → direct | web pipeline)
+  → { answer, sources, mode }
 ```
 
 ## Stack
@@ -15,7 +15,8 @@ Browser (localhost:3000)
 | Layer | Tech |
 | --- | --- |
 | Frontend | Next.js (App Router), React, Tailwind CSS, shadcn/ui |
-| Backend | Express, TypeScript, LangChain, Zod |
+| Backend | Express, TypeScript, LangChain LCEL, Zod |
+| Search | Tavily |
 | Models | OpenAI (`gpt-4o-mini`) or Google Gemini |
 
 ## Prerequisites
@@ -23,12 +24,13 @@ Browser (localhost:3000)
 - Node.js 20+ (recommended)
 - npm
 - An API key for **OpenAI** and/or **Google Gemini**
+- A **Tavily** API key (for the web search path)
 
 ## Project layout
 
 ```
 AgentH/
-├── backend/     # Express API + LangChain
+├── backend/     # Express API + LangChain search agent
 └── frontend/    # Next.js chat UI
 ```
 
@@ -62,8 +64,10 @@ Edit `backend/.env`:
 OPENAI_API_KEY=your_openai_key
 GOOGLE_API_KEY=your_gemini_key
 
+# Required for web search path
+TAVILY_API_KEY=your_tavily_key
+
 # Optional: force a provider ("openai" or "google")
-# If unset, OpenAI is preferred when OPENAI_API_KEY is present
 FORCED_PROVIDER=
 
 # Optional (default 3030)
@@ -94,14 +98,14 @@ cd frontend
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), ask a question, and you should see a summary with a confidence chip.
+Open [http://localhost:3000](http://localhost:3000), ask a question (at least 5 characters), and you should see an answer with a Direct/Web badge and source links when the web path was used.
 
 ## How a request flows
 
-1. `AgentChat` posts `{ query }` to `/api/ask`.
-2. The Next.js route forwards that to `POST ${NEXT_PUBLIC_API_URL}/ask-agent`.
-3. The backend builds a LangChain chat model, runs structured output validated by Zod (`summary`, `confidence`), and returns JSON.
-4. The UI appends the exchange to the thread.
+1. `AgentChat` posts `{ q }` to `/api/search`.
+2. The Next.js route forwards that to `POST ${NEXT_PUBLIC_API_URL}/search`.
+3. The backend LCEL chain routes to a direct LLM answer or a web pipeline (search → fetch → summarize → compose).
+4. The UI shows `{ answer, sources, mode }` in the thread.
 
 ## Useful scripts
 
@@ -117,4 +121,4 @@ Open [http://localhost:3000](http://localhost:3000), ask a question, and you sho
 
 - CORS on the backend allows `http://localhost:3000`.
 - Keep `.env` files out of git (they are ignored). Use `.env.example` as the template for the backend.
-- Free-tier Gemini keys may need a lighter model; adjust the model name in `backend/src/langChainModel.ts` if you hit quota or model errors.
+- Queries must be at least 5 characters (`SearchInputSchema`).
