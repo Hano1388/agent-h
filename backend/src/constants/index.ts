@@ -1,0 +1,16 @@
+export const webPathPatterns: RegExp[] = [
+  /\btop\s+10\b/i,
+  /\bprice\s+related\b/i,
+  /\brecent\s+year\s+related\b/i,
+  /\bany\s+other\s+pattern\s+that\s+we\s+should\s+use\s+to\s+route\s+the\s+agent\s+to\s+web\s+path\b/i,
+  /\b(best|top|highest|most)\s+(popular|trending|favorite|favorite)\s+(products|items|things|stuff)\b/i,
+  /\b(lowest|cheapest|budget|affordable)\s+(prices|costs|rates|fees)\b/i,
+  /\b(new|latest|recent|upcoming)\s+(releases|updates|launches|products)\b/i,
+  /\b(most|highest|lowest)\s+(sales|revenue|profit|earnings)\b/i,
+  /\b(most|highest|lowest)\s+(downloads|views|likes|shares)\b/i,
+  /\b(most|highest|lowest)\s+(reviews|ratings|comments|feedback)\b/i,
+  /\b(most|highest|lowest)\s+(users|customers|visitors|followers)\b/i,
+  /\b(most|highest|lowest)\s+(visits|clicks|impressions|impressions)\b/i,
+  /\b(most|highest|lowest)\s+(reviews|ratings|comments|feedback)\b/i,
+  /\b(most|highest|lowest)\s+(users|customers|visitors|followers)\b/i,
+];
