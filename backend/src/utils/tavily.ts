@@ -18,9 +18,14 @@ export const tavilySearchUtil = async (
 
     const response = await tvly.search(query, {
       searchDepth: 'basic',
-      resultsPerQuery: 10,
+      maxResults: 10,
     });
-    return WebSearchResultsSchema.parse(response.results);
+    const mapped = (response.results ?? []).map((result) => ({
+      title: result.title,
+      url: result.url,
+      snippet: result.content ?? '',
+    }));
+    return WebSearchResultsSchema.parse(mapped);
   } catch (error) {
     console.error('Error searching the web:', error);
     throw error;

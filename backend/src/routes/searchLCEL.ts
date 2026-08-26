@@ -1,4 +1,4 @@
-import { runAgent } from '@/searchAgent/runnableChain';
+import { runAgent } from '@/searchAgent/runAgent';
 import { SearchInputSchema } from '@/utils/schemas';
 import { Router } from 'express';
 

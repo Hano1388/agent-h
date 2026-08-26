@@ -83,11 +83,14 @@ function cleanText(text: string) {
 function validateUrl(url: string) {
   try {
     const parsedUrl = new URL(url);
-    if (parsedUrl.protocol !== 'http' && parsedUrl.protocol !== 'https') {
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
       throw new Error('only http and https urls are supported');
     }
     return parsedUrl.toString();
   } catch (error) {
+    if (error instanceof Error && error.message.includes('only http')) {
+      throw error;
+    }
     throw new Error('Invalid URL');
   }
 }

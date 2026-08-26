@@ -11,6 +11,7 @@ import { RunnableLambda, RunnableSequence } from '@langchain/core/runnables';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 
 import { SearchInputSchema } from '../utils/schemas';
+import { webSearch } from '../utils/WebSearch';
 import { searchTheWeb } from '../utils/searchTheWeb';
 import { summarize } from '../utils/summarize';
 import { getChatModel } from '../shared/models';
@@ -20,7 +21,7 @@ export const webSearchStep = RunnableLambda.from(
   async (input: { q: string; mode: 'direct' | 'web' }) => {
     const { q } = SearchInputSchema.parse(input);
 
-    const results = await searchTheWeb(q);
+    const results = await webSearch(q);
     return {
       ...input,
       results,
@@ -33,7 +34,7 @@ export const summarizeStep = RunnableLambda.from(
     if (!Array.isArray(input.results) || input.results.length === 0) {
       return {
         ...input,
-        summaries: [],
+        pageSummaries: [],
         fallback: 'No results found' as const,
       };
     }
@@ -58,7 +59,7 @@ export const summarizeStep = RunnableLambda.from(
 
     return {
       ...input,
-      summaries: settledResultsPageSummaries,
+      pageSummaries: settledResultsPageSummaries,
       fallback:
         settledResultsPageSummaries.length > 0
           ? undefined
