@@ -1,170 +1,124 @@
 # Agent H
 
-Full-stack AI Q&A app: ask a question in the browser, and the backend routes it through a LangChain LCEL chain — either a direct LLM answer or a web-search pipeline (Tavily → fetch → summarize → compose).
-
-**Response shape:** `{ answer, sources, mode }` where `mode` is `"direct"` or `"web"`.
-
----
-
-## Quick start (~5 minutes)
-
-### Prerequisites
-
-- **Node.js 20+**
-- **npm**
-- API keys (free tiers work for local dev):
-  - [Google AI Studio](https://aistudio.google.com/apikey) (Gemini) **or** [OpenAI](https://platform.openai.com/api-keys)
-  - [Tavily](https://tavily.com/) (web search path)
-
-### 1. Install dependencies
-
-From the repo root:
-
-```bash
-cd backend && npm install
-cd ../frontend && npm install
-```
-
-### 2. Configure environment
-
-**Backend**
-
-```bash
-cd backend
-cp .env.example .env
-```
-
-Edit `backend/.env` and set at minimum:
-
-| Variable | Required | Notes |
-| --- | --- | --- |
-| `PORT` | Yes | Default `3030` |
-| `MODEL_PROVIDER` | Yes | `gemini` or `openai` |
-| `GOOGLE_API_KEY` | If using Gemini | Free tier friendly |
-| `OPENAI_API_KEY` | If using OpenAI | |
-| `TAVILY_API_KEY` | For web search | Needed for “Top 10…” style queries |
-
-**Frontend**
-
-```bash
-cd frontend
-cp .env.example .env
-```
-
-`frontend/.env` should contain:
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3030
-```
-
-### 3. Start both apps
-
-**Terminal 1 — backend**
-
-```bash
-cd backend
-npm run dev
-```
-
-Wait for: `Server is running on port 3030`
-
-**Terminal 2 — frontend**
-
-```bash
-cd frontend
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000)
-
-### 4. Try it
-
-**In the UI:** type a question (min **5 characters**) and click **Ask**.
-
-**Direct path** (LLM only, no web search):
-
-```bash
-curl -X POST http://localhost:3030/search \
-  -H "Content-Type: application/json" \
-  -d '{"q": "What is TypeScript?"}'
-```
-
-**Web path** (Tavily + page fetch + summarize):
-
-```bash
-curl -X POST http://localhost:3030/search \
-  -H "Content-Type: application/json" \
-  -d '{"q": "Top 10 colleges in Kurdistan Region of Iraq"}'
-```
-
-Expected JSON:
-
-```json
-{
-  "answer": "...",
-  "sources": ["https://..."],
-  "mode": "web"
-}
-```
-
----
-
-## Architecture
+Agent H is a full-stack AI Q&A app. You type a question in the Next.js UI; the Express backend routes it through a LangChain LCEL chain that either answers directly or searches the web (Tavily), then returns `{ answer, sources, mode }`.
 
 ```
 Browser (localhost:3000)
-  → Next.js POST /api/search
+  → Next.js /api/search
   → Express POST /search (localhost:3030)
-  → LCEL chain: router → direct | web pipeline → validation
+  → LCEL (route → direct | web pipeline)
   → { answer, sources, mode }
 ```
 
+## Stack
+
 | Layer | Tech |
 | --- | --- |
-| Frontend | Next.js (App Router), React, Tailwind, shadcn/ui |
+| Frontend | Next.js (App Router), React, Tailwind CSS, shadcn/ui |
 | Backend | Express, TypeScript, LangChain LCEL, Zod |
-| Search | Tavily, html-to-text |
-| Models | OpenAI or Google Gemini (via env) |
+| Search | Tavily |
+| Models | OpenAI (`gpt-4o-mini`) or Google Gemini |
+
+## Prerequisites
+
+- Node.js 20+ (recommended)
+- npm
+- An API key for **OpenAI** and/or **Google Gemini**
+- A **Tavily** API key (for the web search path)
 
 ## Project layout
 
 ```
 AgentH/
-├── backend/
-│   └── src/
-│       ├── index.ts              # Express server
-│       ├── routes/searchLCEL.ts  # POST /search
-│       └── searchAgent/          # LCEL pipelines
-└── frontend/
-    └── src/
-        ├── app/api/search/       # Proxy to backend
-        └── components/AgentChat.tsx
+├── backend/     # Express API + LangChain search agent
+└── frontend/    # Next.js chat UI
 ```
 
-## Scripts
+## Local setup
+
+### 1. Clone and install
+
+```bash
+cd AgentH
+
+cd backend
+npm install
+
+cd ../frontend
+npm install
+```
+
+### 2. Configure environment variables
+
+**Backend** — copy the example file and add your keys:
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+Edit `backend/.env`:
+
+```env
+# At least one of these is required
+OPENAI_API_KEY=your_openai_key
+GOOGLE_API_KEY=your_gemini_key
+
+# Required for web search path
+TAVILY_API_KEY=your_tavily_key
+
+# Optional: force a provider ("openai" or "google")
+FORCED_PROVIDER=
+
+# Optional (default 3030)
+PORT=3030
+```
+
+**Frontend** — create `frontend/.env`:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3030
+```
+
+### 3. Run the apps
+
+Use two terminals.
+
+**Backend** (port `3030`):
+
+```bash
+cd backend
+npm run dev
+```
+
+**Frontend** (port `3000`):
+
+```bash
+cd frontend
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000), ask a question (at least 5 characters), and you should see an answer with a Direct/Web badge and source links when the web path was used.
+
+## How a request flows
+
+1. `AgentChat` posts `{ q }` to `/api/search`.
+2. The Next.js route forwards that to `POST ${NEXT_PUBLIC_API_URL}/search`.
+3. The backend LCEL chain routes to a direct LLM answer or a web pipeline (search → fetch → summarize → compose).
+4. The UI shows `{ answer, sources, mode }` in the thread.
+
+## Useful scripts
 
 | Location | Command | Purpose |
 | --- | --- | --- |
-| `backend/` | `npm run dev` | API with hot reload |
-| `backend/` | `npm start` | API once |
-| `frontend/` | `npm run dev` | Next.js dev server |
+| `backend/` | `npm run dev` | Start API with file watching |
+| `backend/` | `npm start` | Start API once |
+| `frontend/` | `npm run dev` | Start Next.js in development |
 | `frontend/` | `npm run build` | Production build |
-| `frontend/` | `npm start` | Serve production build |
-
-## Troubleshooting
-
-| Problem | Fix |
-| --- | --- |
-| `TAVILY_API_KEY is not set` | Add key to `backend/.env` (web path only) |
-| `Invalid URL` | Usually fixed — web search must use Tavily first, not pass the query as a URL |
-| Query rejected | `q` must be at least 5 characters |
-| Frontend can't reach backend | Check `NEXT_PUBLIC_API_URL` and that backend is on port `3030` |
-| CORS error | Set `CORS_ORIGIN=http://localhost:3000` in `backend/.env` |
-| Gemini quota / model errors | Try `GEMINI_MODEL=gemini-2.0-flash-lite` in `backend/.env` |
-| Env changes not picked up | Restart `npm run dev` in both terminals |
+| `frontend/` | `npm start` | Serve the production build |
 
 ## Notes
 
-- `.env` files are gitignored — never commit API keys.
-- Use `backend/.env.example` and `frontend/.env.example` as templates.
-- Web search can take 30–60 seconds (multiple page fetches + LLM calls).
+- CORS on the backend allows `http://localhost:3000`.
+- Keep `.env` files out of git (they are ignored). Use `.env.example` as the template for the backend.
+- Queries must be at least 5 characters (`SearchInputSchema`).
